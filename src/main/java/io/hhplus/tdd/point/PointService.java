@@ -23,7 +23,7 @@ public class PointService {
         return pointHistoryRepository.findById(id);
     }
 
-    public UserPoint charge(long id, long amount) {
+    public synchronized UserPoint charge(long id, long amount) {
         UserPoint userPointCurrent = userPointRepository.findById(id);
         long point = userPointCurrent.point() + amount;
         if (point > MAX_POINT_LIMIT) {
@@ -35,7 +35,7 @@ public class PointService {
         return userPointNew;
     }
 
-    public UserPoint use(long id, long amount) {
+    public synchronized UserPoint use(long id, long amount) {
         UserPoint userPointCurrent = userPointRepository.findById(id);
         long point = userPointCurrent.point() - amount;
         if (point < 0) {
