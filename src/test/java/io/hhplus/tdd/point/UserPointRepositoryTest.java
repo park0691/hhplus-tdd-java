@@ -1,7 +1,5 @@
-package io.hhplus.tdd.repository;
+package io.hhplus.tdd.point;
 
-import io.hhplus.tdd.point.UserPoint;
-import io.hhplus.tdd.point.UserPointRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
