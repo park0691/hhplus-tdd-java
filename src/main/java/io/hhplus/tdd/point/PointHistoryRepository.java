@@ -1,6 +1,4 @@
-package io.hhplus.tdd.repository;
-
-import io.hhplus.tdd.point.PointHistory;
+package io.hhplus.tdd.point;
 
 import java.util.List;
 

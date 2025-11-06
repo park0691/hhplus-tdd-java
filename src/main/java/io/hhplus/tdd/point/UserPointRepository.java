@@ -1,6 +1,4 @@
-package io.hhplus.tdd.repository;
-
-import io.hhplus.tdd.point.UserPoint;
+package io.hhplus.tdd.point;
 
 public interface UserPointRepository {
 

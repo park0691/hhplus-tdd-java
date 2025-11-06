@@ -1,6 +1,5 @@
 package io.hhplus.tdd.point;
 
-import io.hhplus.tdd.repository.UserPointRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

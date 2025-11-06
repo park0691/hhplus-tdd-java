@@ -1,6 +1,7 @@
 package io.hhplus.tdd.repository;
 
 import io.hhplus.tdd.point.PointHistory;
+import io.hhplus.tdd.point.PointHistoryRepository;
 import io.hhplus.tdd.point.TransactionType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

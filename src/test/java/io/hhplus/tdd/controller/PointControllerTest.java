@@ -1,9 +1,6 @@
 package io.hhplus.tdd.controller;
 
-import io.hhplus.tdd.point.PointHistory;
-import io.hhplus.tdd.point.PointService;
-import io.hhplus.tdd.point.TransactionType;
-import io.hhplus.tdd.point.UserPoint;
+import io.hhplus.tdd.point.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

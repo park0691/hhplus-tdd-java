@@ -1,7 +1,6 @@
-package io.hhplus.tdd.repository;
+package io.hhplus.tdd.point;
 
 import io.hhplus.tdd.database.PointHistoryTable;
-import io.hhplus.tdd.point.PointHistory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
