@@ -1,2 +1,3 @@
 spring:
-  application.name: hhplus-tdd
+  application:
+    name: hhplus-tdd

@@ -1,5 +1,7 @@
 package io.hhplus.tdd.point;
 
+import io.hhplus.tdd.lock.LockManager;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -8,6 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -17,6 +20,9 @@ import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class PointServiceTest {
+
+    @Mock
+    LockManager lockManager;
 
     @Mock
     PointHistoryRepository pointHistoryRepository;
@@ -74,6 +80,8 @@ class PointServiceTest {
                 .willReturn(UserPoint.empty(1L));
         given(userPointRepository.save(any(UserPoint.class)))
                 .willReturn(new UserPoint(1L, 300L, System.currentTimeMillis()));
+        given(lockManager.withLock(anyLong(), any()))
+                .willAnswer(invocation -> invocation.<Supplier<?>>getArgument(1).get());
 
         // when
         UserPoint userPoint = pointService.charge(1L, 300L);
@@ -91,6 +99,8 @@ class PointServiceTest {
         // given
         given(userPointRepository.findById(anyLong()))
                 .willReturn(UserPoint.empty(1L));
+        given(lockManager.withLock(anyLong(), any()))
+                .willAnswer(invocation -> invocation.<Supplier<?>>getArgument(1).get());
 
         // when, then
         assertThatThrownBy(() -> pointService.charge(1L, 3_000_000L))
@@ -106,6 +116,8 @@ class PointServiceTest {
                 .willReturn(new UserPoint(1L, 300L, System.currentTimeMillis()));
         given(userPointRepository.save(any(UserPoint.class)))
                 .willReturn(new UserPoint(1L, 200L, System.currentTimeMillis()));
+        given(lockManager.withLock(anyLong(), any()))
+                .willAnswer(invocation -> invocation.<Supplier<?>>getArgument(1).get());
 
         // when
         UserPoint userPoint = pointService.use(1L, 100L);
@@ -123,6 +135,8 @@ class PointServiceTest {
         // given
         given(userPointRepository.findById(anyLong()))
                 .willReturn(UserPoint.empty(1L));
+        given(lockManager.withLock(anyLong(), any()))
+                .willAnswer(invocation -> invocation.<Supplier<?>>getArgument(1).get());
 
         // when, then
         assertThatThrownBy(() -> pointService.use(1L, 3_000_000L))
