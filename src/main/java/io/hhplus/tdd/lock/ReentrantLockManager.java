@@ -13,7 +13,7 @@ public class ReentrantLockManager implements LockManager {
 
     @Override
     public <T> T withLock(Long key, Supplier<T> action) {
-        ReentrantLock lock = locks.computeIfAbsent(key, k -> new ReentrantLock());
+        ReentrantLock lock = locks.computeIfAbsent(key, k -> new ReentrantLock(true));
         lock.lock();
 
         try {
