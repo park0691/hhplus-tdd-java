@@ -1,4 +1,19 @@
 # Simple Point API (feat. concurrency problem)
+## 실행 방법
+```bash
+# 빌드
+./gradlew build
+
+# 애플리케이션 실행 (8080 포트)
+./gradlew bootRun
+
+# 전체 테스트 실행
+./gradlew test
+
+# 특정 테스트 클래스 실행
+./gradlew test --tests "PointServiceConcurrencyTest"
+```
+
 ## 소개
 본 프로젝트는 간단한 **포인트 조회/사용 API**를 모델로, 멀티 스레드 환경에서 발생할 수 있는 **동시성 문제**를 해결하는 과정을 담은 토이 프로젝트입니다. 이 프로젝트의 베이스 코드는 *항해 플러스 백엔드 7기 1주차 스켈레톤 코드*을 활용합니다.
 
@@ -17,6 +32,38 @@
 - 다수의 스레드가 동일한 사용자 포인트에 동시에 접근하는 경쟁 상태(`Race Condition`) 해결
     - 동시에 들어오는 여러 건의 포인트 충전, 이용 요청은 순차적으로 (혹은 한 번에 하나의 요청씩) 처리되어야 한다.
 - 동시성 제어에 대한 통합 테스트 작성
+
+### 기술 스택
+- **Language:** Java 17
+- **Framework:** Spring Boot 3.2.0 (Spring Web)
+- **Build:** Gradle (Kotlin DSL)
+- **Test:** JUnit 5, Mockito, AssertJ
+
+## 아키텍처
+별도의 DB 없이, `In-Memory` 저장소(`HashMap`, `ArrayList`)가 DB 접근을 흉내 낸다. (랜덤 지연 0~300ms 포함)
+
+### 요청 흐름
+```
+HTTP → PointController → PointService → LockManager → Repository → Table (In-Memory)
+```
+- **`PointController`** — REST API 엔드포인트 (조회/이력/충전/사용)
+- **`PointService`** — 비즈니스 규칙(잔고 한도·차감 검증, 이력 기록). 동시성 제어는 `LockManager`에 위임
+- **`LockManager`** — 사용자 ID 단위 락 처리를 추상화한 인터페이스 (구현체: `ReentrantLockManager`)
+- **`Repository`** — 저장소 접근 추상화 (`UserPointRepository`, `PointHistoryRepository`)
+- **`Table`** — 수정 불가능한 In-Memory 저장소 (베이스 스켈레톤 제공)
+
+### 패키지 구조 (`io.hhplus.tdd`)
+```
+point/      Controller, Service, Repository, 모델(UserPoint·PointHistory), TransactionType
+lock/       LockManager 인터페이스, ReentrantLockManager 구현체
+database/   UserPointTable, PointHistoryTable (수정 금지)
+```
+
+### 비즈니스 규칙
+- 최대 보유 포인트: **1,000,000**
+- **충전(charge):** 충전 후 잔고가 최대치를 초과하면 예외
+- **사용(use):** 잔고가 부족하면(차감 후 0 미만) 예외
+- 모든 예외는 `ApiControllerAdvice`를 통해 HTTP 500으로 매핑된다.
 
 ## 동시성 문제 분석
 ### 동시성 문제
@@ -164,3 +211,33 @@
     - `Supplier<T>` 콜백을 활용해 `withLock(key, supplier)` 형태로 임계 영역을 감쌌다. 락을 획득하고 해제하는 일련의 과정을 내부로 숨겨서, 실수로 `unlock()`이 호출되지 않아 발생하는 데드락 위험을 구조적으로 차단했다.
 
 > 💡 단일 서버 + 단일 구현체만 놓고 보면 인터페이스 분리가 과할 수 있으나, 락 관련 코드를 비즈니스 로직에서 격리하여 얻어지는 압도적인 가독성과 테스트 편의성을 고려하여 도입했다.
+
+## 테스트 / 검증
+### 테스트 레이어
+| 테스트 클래스 | 프레임워크 | 검증 대상 |
+| --- | --- | --- |
+| `PointControllerTest` | `@WebMvcTest` + MockMvc | HTTP 계층, JSON 응답 형태 |
+| `PointServiceTest` | `@ExtendWith(MockitoExtension)` | 비즈니스 로직 (Mock 기반, 락 무관) |
+| `PointServiceConcurrencyTest` | `@SpringBootTest` | **동시성 / 경쟁 상태** |
+| `UserPointRepositoryTest` | `@SpringBootTest` | 저장소 통합 |
+| `PointHistoryRepositoryTest` | `@SpringBootTest` | 저장소 통합 |
+
+### 동시성 검증 전략
+동시성 제어 로직은 단일 스레드 환경의 단위 테스트만으로는 완벽하게 검증하기 어렵다. 실제로 다수 스레드를 동시에 띄워 경쟁 상태(Race Condition)를 재현하고, **최종 결과가 기대값과 항상 일치하는지** 검증해야 한다.
+
+이를 위해 `ExecutorService`로 다수의 스레드를 동시에 실행하고, `CountDownLatch`(또는 `invokeAll` + `Future.get()`)로 **모든 작업이 끝난 시점**의 최종 상태를 검증한다.
+
+**1. 동일 사용자 동시 충전 — `chargeCurrently`**
+- 한 사용자(잔고 0)에게 100포인트 충전 요청을 **20개 스레드로 동시 실행**
+- **기대값:** 최종 잔고 = `20 × 100 = 2,000` → 락이 없다면 `Lost Update`로 2,000 미만이 됨
+
+**2. 동일 사용자 동시 사용 — `useCurrently`**
+- 초기 2,000포인트에서 10포인트 사용 요청을 **20개 스레드로 동시 실행**
+- **기대값:** 최종 잔고 = `2,000 - (20 × 10) = 1,800`
+
+**3. 다중 사용자 충전/사용 혼합 — `useAndChargeCurrently`** (`@RepeatedTest(2)`)
+- 10명의 사용자 각각에 대해 충전 25건 + 사용 25건을 **무작위 순서로 뒤섞어 동시 실행**
+- **기대값:** 사용자별 최종 잔고 = `초기값 + (25 × 충전액) - (25 × 사용액)`
+- 다수 사용자의 요청이 뒤섞여 동시에 몰려도, **사용자별 데이터 정합성이 독립적으로 보장됨**을 검증한다. (동일 사용자 요청이 순차 처리되지 않으면 `Lost Update`로 기대값이 어긋난다.)
+
+> 💡 모든 동시성 테스트는 락이 없으면 `Lost Update`가 발생하여 기대값과 다른 결과가 나오도록 설계되었다. 즉, **테스트 통과한다는 것은 동시성 제어가 실제로 동작함**을 증명한다.
